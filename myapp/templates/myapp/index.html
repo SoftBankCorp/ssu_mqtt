@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>IoT Dashboard</h1>
+    <canvas id="sensorChart" width="400" height="200"></canvas>
+
+    <!-- 모터 제어 버튼 -->
+    <button id="motorOn">Motor ON</button>
+    <button id="motorOff">Motor OFF</button>
+    
+    <!-- 모터 속도 조절 바 -->
+    <label for="motorSpeed">Speed:</label>
+    <input type="range" id="motorSpeed" min="0" max="100" value="50">
+    
+    <script>
+        // Chart.js 설정
+        const ctx = document.getElementById('sensorChart').getContext('2d');
+        const sensorChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [
+                    { label: 'Current (A)', data: [], borderColor: 'red', fill: false },
+                    { label: 'Voltage (V)', data: [], borderColor: 'blue', fill: false },
+                    { label: 'Temperature (°C)', data: [], borderColor: 'green', fill: false },
+                    { label: 'Humidity (%)', data: [], borderColor: 'orange', fill: false },
+                ]
+            },
+            options: {
+                scales: {
+                    x: { type: 'time', time: { unit: 'minute' } },
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        function updateChart(data) {
+            const now = new Date();
+            sensorChart.data.labels.push(now);
+            sensorChart.data.datasets[0].data.push(data.current);
+            sensorChart.data.datasets[1].data.push(data.voltage);
+            sensorChart.data.datasets[2].data.push(data.temperature);
+            sensorChart.data.datasets[3].data.push(data.humidity);
+
+            // 데이터가 너무 많아지면 오래된 데이터 제거
+            if (sensorChart.data.labels.length > 50) {
+                sensorChart.data.labels.shift();
+                sensorChart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+
+            sensorChart.update();
+        }
+
+        function fetchData() {
+            $.get('/get-latest-data/', function(data) {
+                updateChart(data);
+            });
+        }
+
+        // 데이터 갱신 주기 설정
+        setInterval(fetchData, 5000); // 5초마다 데이터 갱신
+
+        $('#motorOn').click(function() {
+            $.post('/control-motor/', { motor_status: true });
+        });
+
+        $('#motorOff').click(function() {
+            $.post('/control-motor/', { motor_status: false });
+        });
+
+        $('#motorSpeed').on('input', function() {
+            $.post('/control-motor/', { motor_speed: $(this).val() });
+        });
+    </script>
+
+    <!-- 데이터 표 추가 -->
+    <h2>Sensor Data Table</h2>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Current (A)</th>
+                <th>Voltage (V)</th>
+                <th>Temperature (°C)</th>
+                <th>Humidity (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in data %}
+            <tr>
+                <td>{{ entry.timestamp }}</td>
+                <td>{{ entry.current|floatformat:2 }}</td>
+                <td>{{ entry.voltage|floatformat:2 }}</td>
+                <td>{{ entry.temperature|floatformat:2 }}</td>
+                <td>{{ entry.humidity|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="5">No data available</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
