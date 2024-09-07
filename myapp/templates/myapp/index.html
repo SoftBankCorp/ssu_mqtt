@@ -5,7 +5,25 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IoT Dashboard</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script> <!-- 날짜 어댑터 추가 -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+    </style>
 </head>
 <body>
     <h1>IoT Dashboard</h1>
@@ -14,11 +32,28 @@
     <!-- 모터 제어 버튼 -->
     <button id="motorOn">Motor ON</button>
     <button id="motorOff">Motor OFF</button>
-    
+
     <!-- 모터 속도 조절 바 -->
     <label for="motorSpeed">Speed:</label>
     <input type="range" id="motorSpeed" min="0" max="100" value="50">
-    
+
+    <!-- 데이터 표 -->
+    <h2>Sensor Data</h2>
+    <table id="dataTable">
+        <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Current (A)</th>
+                <th>Voltage (V)</th>
+                <th>Temperature (°C)</th>
+                <th>Humidity (%)</th>
+            </tr>
+        </thead>
+        <tbody>
+
+        </tbody>
+    </table>
+
     <script>
         // Chart.js 설정
         const ctx = document.getElementById('sensorChart').getContext('2d');
@@ -61,7 +96,26 @@
         function fetchData() {
             $.get('/get-latest-data/', function(data) {
                 updateChart(data);
+                updateTable(data);
             });
+        }
+
+        function updateTable(data) {
+            const tableBody = $('#dataTable tbody');
+            const now = new Date().toLocaleString();
+            const row = `<tr>
+                <td>${now}</td>
+                <td>${data.current}</td>
+                <td>${data.voltage}</td>
+                <td>${data.temperature}</td>
+                <td>${data.humidity}</td>
+            </tr>`;
+            tableBody.append(row);
+
+            // 데이터가 너무 많아지면 오래된 데이터 제거
+            if (tableBody.find('tr').length > 50) {
+                tableBody.find('tr').first().remove();
+            }
         }
 
         // 데이터 갱신 주기 설정
@@ -79,34 +133,5 @@
             $.post('/control-motor/', { motor_speed: $(this).val() });
         });
     </script>
-
-    <!-- 데이터 표 추가 -->
-    <h2>Sensor Data Table</h2>
-    <table border="1">
-        <thead>
-            <tr>
-                <th>Timestamp</th>
-                <th>Current (A)</th>
-                <th>Voltage (V)</th>
-                <th>Temperature (°C)</th>
-                <th>Humidity (%)</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for entry in data %}
-            <tr>
-                <td>{{ entry.timestamp }}</td>
-                <td>{{ entry.current|floatformat:2 }}</td>
-                <td>{{ entry.voltage|floatformat:2 }}</td>
-                <td>{{ entry.temperature|floatformat:2 }}</td>
-                <td>{{ entry.humidity|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="5">No data available</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
 </body>
 </html>
