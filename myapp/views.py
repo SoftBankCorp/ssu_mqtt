@@ -1,62 +1,68 @@
-# myapp/views.py
-
+# views.py
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from .models import SensorData
+from .models import RawSensorData, AverageSensorData, MotorControl
 import paho.mqtt.publish as publish
 import json
 
-def index(request):
-    # 데이터베이스에서 모든 데이터 가져오기
-    data = SensorData.objects.all().order_by('-timestamp')
-
-    # 최신 데이터 1개 가져오기
-    try:
-        latest_data = SensorData.objects.latest('timestamp')
-    except SensorData.DoesNotExist:
-        latest_data = None
-
-    context = {
-        'data': data,
-        'latest_data': latest_data
-    }
-
-    return render(request, 'myapp/index.html', context)
+def first_view(request):
+    # Render the average data template
+    return render(request, 'myapp/average_data.html')
 
 
-def get_latest_data(request):
-    try:
-        # 최신 데이터 1개를 가져옵니다.
-        latest_data = SensorData.objects.latest('timestamp')
+def average_data_in_views(request):
+    # Get the last 50 data points
+    data_points = AverageSensorData.objects.order_by('-timestamp')[:50]
+    # Reverse to get chronological order
+    data_points = reversed(data_points)
+    data_list = []
+    for data in data_points:
+        data_list.append({
+            'current': data.current,
+            'voltage': data.voltage,
+            'temperature': data.temperature,
+            'humidity': data.humidity,
+            'timestamp': data.timestamp.isoformat()
+        })
+    return JsonResponse({'data': data_list})
 
-        data = {
-            'current': latest_data.current,
-            'voltage': latest_data.voltage,
-            'temperature': latest_data.temperature,
-            'humidity': latest_data.humidity,
-            'timestamp': latest_data.timestamp.isoformat()
-        }
-    except SensorData.DoesNotExist:
-        data = {
-            'current': None,
-            'voltage': None,
-            'temperature': None,
-            'humidity': None,
-            'timestamp': None
-        }
+def second_view(request):
+    # Render the raw data template
+    return render(request, 'myapp/raw_data.html')
 
-    return JsonResponse(data)
-@csrf_exempt
+def raw_data_in_views(request):
+    # Get the last 50 data points
+    data_points = RawSensorData.objects.order_by('-timestamp')[:50]
+    # Reverse to get chronological order
+    data_points = reversed(data_points)
+    data_list = []
+    for data in data_points:
+        data_list.append({
+            'current': data.current,
+            'voltage': data.voltage,
+            'temperature': data.temperature,
+            'humidity': data.humidity,
+            'timestamp': data.timestamp.isoformat()
+        })
+    return JsonResponse({'data': data_list})
+
 def control_motor(request):
-    """모터 제어 요청 처리"""
     if request.method == 'POST':
         motor_status = request.POST.get('motor_status') == 'true'
         motor_speed = request.POST.get('motor_speed')
 
-        # MQTT 메시지로 모터 제어 명령 전송
-        publish.single("BMS/power", json.dumps({'status': motor_status}), hostname="broker.mqtt-dashboard.com")
-        publish.single("MOTOR/speed", motor_speed, hostname="broker.mqtt-dashboard.com")
+        # Convert motor_status to integer for database storage (0 or 1)
+        motor_power = 1 if motor_status else 0
+
+        # Save to the database
+        MotorControl.objects.create(power=motor_power, speed=motor_speed)
+
+        # Publish to MQTT broker
+        publish.single("motor/control", json.dumps({
+            'status': motor_status,
+            'speed': motor_speed
+        }), hostname="broker.mqtt-dashboard.com")
 
         return JsonResponse({'status': 'success'})
     return JsonResponse({'status': 'failed'}, status=400)

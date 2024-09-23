@@ -82,14 +82,18 @@ WSGI_APPLICATION = 'mqtt_ssu.wsgi.application'
 #         'BACKEND': 'channels.layers.InMemoryChannelLayer',
 #     },
 # }
-#
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'bms',
+        'USER': 'dong',
+        'PASSWORD': 'dong',
+        'HOST': 'localhost',
+        'PORT': '5432',
     }
 }
+
 
 
 # Password validation
