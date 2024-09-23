@@ -1,4 +1,4 @@
-from channels.generic.websocket import AsyncWebsocketConsumer
+
 import json
 import paho.mqtt.publish as publish
 

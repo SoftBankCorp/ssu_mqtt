@@ -1,6 +1,8 @@
 # myapp/mqtt.py
 
 import paho.mqtt.client as mqtt
+from django.views.decorators.csrf import csrf_exempt
+
 from .models import AverageSensorData, RawSensorData
 import struct
 import json
@@ -72,6 +74,27 @@ def process_average_data(payload):
         voltage=voltage_avg
     )
     print(f"Average Data - Temp: {temp_avg}, Humidity: {hum_avg}, Current: {current_avg}, Voltage: {voltage_avg}")
+
+
+@csrf_exempt
+def update_motor_control(request):
+    if request.method == 'POST':
+        data = json.loads(request.body.decode('utf-8'))
+        motor_on = data.get('motor_on', False)
+        motor_speed = data.get('motor_speed', 50)
+
+        # Create MQTT message
+        message = json.dumps({
+            "motor_on": motor_on,
+            "motor_speed": motor_speed
+        })
+
+        # Publish to MQTT broker
+        mqtt_client.publish(MQTT_TOPIC, message)
+
+        return JsonResponse({"status": "success", "motor_on": motor_on, "motor_speed": motor_speed})
+
+    return JsonResponse({"status": "failed", "error": "Invalid request method"}, status=400)
 
 
 def mqtt_subscribe():

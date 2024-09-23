@@ -42,11 +42,56 @@
     <!-- Motor Control Section -->
     <div class="motor-control">
         <h2>Motor Control</h2>
-        <button id="motorToggleBtn" class="btn btn-success">Turn Motor ON</button>
+        <button id="motorToggleBtn" class="btn btn-success" data-status="off">Turn Motor ON</button>
         <label for="motorSpeed" class="ml-3">Speed:</label>
         <input type="range" id="motorSpeed" min="0" max="100" value="50">
         <span id="speedValue">50</span>%
     </div>
+    <script>
+        const motorToggleBtn = document.getElementById("motorToggleBtn");
+        const motorSpeedInput = document.getElementById("motorSpeed");
+        const speedValueDisplay = document.getElementById("speedValue");
+
+        motorSpeedInput.addEventListener("input", function() {
+            // Update the speed display when slider is moved
+            speedValueDisplay.textContent = motorSpeedInput.value;
+        });
+
+        motorToggleBtn.addEventListener("click", function() {
+            // Toggle motor status
+            const currentStatus = motorToggleBtn.getAttribute("data-status");
+            const newStatus = currentStatus === "on" ? "off" : "on";
+            const motorStatus = newStatus === "on" ? true : false;
+            const motorSpeed = motorSpeedInput.value;
+
+            // Update button appearance and text
+            motorToggleBtn.setAttribute("data-status", newStatus);
+            motorToggleBtn.classList.toggle("btn-success");
+            motorToggleBtn.classList.toggle("btn-danger");
+            motorToggleBtn.textContent = newStatus === "on" ? "Turn Motor OFF" : "Turn Motor ON";
+
+            // Send the motor status and speed to the server via AJAX
+            $.ajax({
+                url: "{% url 'control_motor' %}",
+                method: "POST",
+                data: {
+                    motor_status: motorStatus,
+                    motor_speed: motorSpeed,
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                },
+                success: function(response) {
+                    if (response.status === 'success') {
+                        console.log("Motor control updated successfully");
+                    } else {
+                        console.log("Failed to update motor control");
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error("Error:", error);
+                }
+            });
+        });
+    </script>
 
     <!-- Chart -->
     <canvas id="sensorChart"></canvas>
